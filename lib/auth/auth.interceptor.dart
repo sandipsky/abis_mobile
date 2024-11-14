@@ -3,11 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthInterceptor {
   Future<void> interceptor(Dio dio) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          SharedPreferences prefs = await SharedPreferences.getInstance();
           String? token = prefs.getString('token');
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -19,6 +18,7 @@ class AuthInterceptor {
             String? errorMessage = err.response!.data['message'];
             if (errorMessage != null &&
                 errorMessage.contains('The Token has expired')) {
+              SharedPreferences prefs = await SharedPreferences.getInstance();
               await prefs.remove('token');
             }
           }

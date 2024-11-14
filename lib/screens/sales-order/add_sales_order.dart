@@ -1,6 +1,7 @@
 import 'package:abis_mobile/services/dropdown.service.dart';
+import 'package:abis_mobile/widgets/dropdown.dart';
+import 'package:abis_mobile/widgets/nepalidatepicker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 class AddSalesOrder extends StatefulWidget {
   const AddSalesOrder({super.key});
@@ -10,24 +11,32 @@ class AddSalesOrder extends StatefulWidget {
 }
 
 class _AddSalesOrderState extends State<AddSalesOrder> {
-  List<Map<String, dynamic>> customerList = [];
-  List<Map<String, dynamic>> headquarterList = [];
-  List<Map<String, dynamic>> divisionList = [];
-  List<Map<String, dynamic>> userList = [];
-  final List<String> transactionTypes = [
-    'Cash',
-    'Credit',
+  List customerList = [];
+  List headquarterList = [];
+  List divisionList = [];
+  List salesRepresentativeList = [];
+  List<Map<String, dynamic>> productList = [
+    {
+      'product': null,
+      'unit': 'pcs',
+      'qty': 0,
+      'rate': 0.0,
+      'total': 0.0,
+    },
   ];
 
-  TextEditingController customer_name = TextEditingController();
-  TextEditingController transaction_type = TextEditingController();
+  TextEditingController customerName = TextEditingController();
+  TextEditingController salesRepresentativeName = TextEditingController();
+  TextEditingController hqName = TextEditingController();
+  TextEditingController divisionName = TextEditingController();
+  TextEditingController transactionType = TextEditingController();
+  TextEditingController orderDate = TextEditingController();
   int divisionId = 0;
   int hqId = 0;
 
   getCustomerList(String searchTerm) async {
     try {
-      var response =
-          await DropDownService().getCustomerDropdown(searchTerm) ?? [];
+      var response = await DropDownService().getCustomerDropdown(searchTerm);
       if (response.statusCode == 200) {
         setState(() {
           customerList = response.data;
@@ -38,14 +47,14 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
     }
   }
 
-  getUserList(String searchTerm) async {
+  getSalesRepresentativeList(String searchTerm) async {
     try {
       var response = await DropDownService()
               .getSalesRepresentativeDropdown(searchTerm, hqId, divisionId) ??
           [];
       if (response.statusCode == 200) {
         setState(() {
-          userList = response.data;
+          salesRepresentativeList = response.data;
         });
       }
     } catch (e) {
@@ -80,6 +89,13 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    getHeadquarterList();
+    getDivisionList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -90,50 +106,85 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Customer Name'),
-            // TypeAheadField(
-            //   controller: customer_name,
-            //   suggestionsCallback: (pattern) async {
-            //     await getCustomerList(pattern);
-            //     return customerList;
-            //   },
-            //   itemBuilder: (context, Map<String, dynamic> suggestion) {
-            //     return ListTile(
-            //       title: Text(suggestion['name']),
-            //     );
-            //   },
-            //   onSelected: (Map<String, dynamic> suggestion) {
-            //     setState(() {
-            //       customer_name.text = suggestion['name'];
-            //     });
-            //   },
-            // ),
-            const SizedBox(height: 20),
-            const Text('Transaction Type'),
-            DropdownButtonFormField<String>(
-              value: transaction_type.text.isNotEmpty
-                  ? transaction_type.text
-                  : null,
-              items: transactionTypes.map((type) {
-                return DropdownMenuItem<String>(
-                  value: type,
-                  child: Text(type),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  transaction_type.text = value!;
-                });
-              },
-              decoration: const InputDecoration(
-                hintText: 'Select Transaction Type',
-              ),
-            ),
-          ],
-        ),
+        child: ListView(children: [
+          MyDropdown(
+            labelText: 'Customer',
+            placeholder: 'Select Customer',
+            items: customerList,
+            onChanged: (value) {
+              setState(() {
+                customerName.text = value['name'];
+              });
+            },
+            controller: customerName,
+            showSearch: true,
+            onSearch: (query) {
+              getCustomerList(query);
+            },
+          ),
+          const SizedBox(height: 20),
+          NpDatePicker(
+              onChanged: (date) => {},
+              controller: orderDate,
+              labelText: 'Order Date',
+              placeholder: 'Tap to Select Date'),
+          const SizedBox(height: 20),
+          MyDropdown(
+            labelText: 'Headquarter',
+            placeholder: 'Select Headquarter',
+            items: headquarterList,
+            onChanged: (value) {
+              setState(() {
+                hqName.text = value['name'];
+              });
+            },
+            controller: hqName,
+          ),
+          const SizedBox(height: 20),
+          MyDropdown(
+            labelText: 'Division',
+            placeholder: 'Select Division',
+            items: divisionList,
+            onChanged: (value) {
+              setState(() {
+                divisionName.text = value['name'];
+              });
+            },
+            controller: divisionName,
+          ),
+          const SizedBox(height: 20),
+          MyDropdown(
+            labelText: 'Sales Representative',
+            placeholder: 'Select Representative',
+            items: salesRepresentativeList,
+            onChanged: (value) {
+              setState(() {
+                salesRepresentativeName.text = value['name'];
+              });
+            },
+            controller: salesRepresentativeName,
+            showSearch: true,
+            onSearch: (query) {
+              getSalesRepresentativeList(query);
+            },
+          ),
+          const SizedBox(height: 20),
+          MyDropdown(
+            labelText: 'Transaction Type',
+            placeholder: 'Select Transaction Type',
+            items: const [
+              {'name': 'Cash'},
+              {'name': 'Credit'}
+            ],
+            onChanged: (value) {
+              setState(() {
+                transactionType.text = value['name'];
+              });
+            },
+            controller: divisionName,
+          ),
+          const SizedBox(height: 20),
+        ]),
       ),
     );
   }
