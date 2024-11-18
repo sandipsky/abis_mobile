@@ -4,13 +4,11 @@ import 'package:np_date_picker/np_date_picker.dart';
 class NpDatePicker extends StatefulWidget {
   final Function(dynamic) onChanged;
   final TextEditingController controller;
-  final String labelText;
   final String placeholder;
 
   const NpDatePicker({
     required this.onChanged,
     required this.controller,
-    required this.labelText,
     required this.placeholder,
     super.key,
   });
@@ -28,7 +26,6 @@ class _NpDatePickerState extends State<NpDatePicker> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Order Date'),
         Column(
           children: [
             TextFormField(

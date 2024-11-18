@@ -6,7 +6,6 @@ class MyDropdown extends StatefulWidget {
   final List items;
   final Function(dynamic) onChanged;
   final TextEditingController controller;
-  final String labelText;
   final String placeholder;
   final bool showSearch;
   final Function(String)? onSearch;
@@ -15,7 +14,6 @@ class MyDropdown extends StatefulWidget {
     required this.items,
     required this.onChanged,
     required this.controller,
-    required this.labelText,
     required this.placeholder,
     this.showSearch = false,
     this.onSearch,
@@ -34,13 +32,12 @@ class _MyDropdownState extends State<MyDropdown> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.labelText),
         DropdownSearch(
           items: (filter, infiniteScrollProps) => widget.items,
           itemAsString: (item) => item['name'],
           decoratorProps: DropDownDecoratorProps(
             decoration: InputDecoration(
-              labelText: widget.labelText,
+              hintText: widget.placeholder,
               floatingLabelBehavior: FloatingLabelBehavior.never,
             ),
           ),
