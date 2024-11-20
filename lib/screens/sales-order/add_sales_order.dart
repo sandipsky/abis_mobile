@@ -73,7 +73,11 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
       source: ImageSource.gallery,
     );
 
-    uploadedFiles.add(image);
+    if (image != null) {
+      setState(() {
+        uploadedFiles.add(image);
+      });
+    }
   }
 
   void _deleteFile(int index) {
@@ -82,8 +86,47 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
     });
   }
 
-  void _viewFile(File file) {
-    // OpenFilex.open(file.path);
+  void _viewFile(XFile file) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        contentPadding: EdgeInsets.zero,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.file(File(file.path)),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _downloadFile(XFile file) async {
+    try {
+      final Directory downloadsDir = Directory('/storage/emulated/0/Download');
+      if (!downloadsDir.existsSync()) {
+        throw Exception("Downloads directory not available.");
+      }
+      final String savePath = '${downloadsDir.path}/${file.name}';
+      final File newFile = File(savePath);
+      await newFile.writeAsBytes(await file.readAsBytes());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File saved to: $savePath')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save file: $e')),
+        );
+      }
+    }
   }
 
   getCustomerList(String searchTerm) async {
@@ -239,7 +282,7 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           const SizedBox(height: 20),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(
+            child: ElevatedButton(
               onPressed: () {
                 setState(() {
                   _isExpanded = !_isExpanded;
@@ -248,36 +291,27 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
               child: Text(_isExpanded ? 'See Less' : 'See More'),
             ),
           ),
+          const SizedBox(height: 20),
           // Conditionally show the form fields
           if (_isExpanded) ...[
-            TextField(
-              controller: purchaseOrderNoController,
-              decoration: const InputDecoration(
-                labelText: 'Purchase Order No.',
-                hintText: 'Purchase Order No.',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: purchaseOrderDateController,
-              decoration: const InputDecoration(
-                labelText: 'Purchase Order Date',
-                hintText: 'Enter date',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.datetime,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: requestDeliveryDateController,
-              decoration: const InputDecoration(
-                labelText: 'Request Delivery Date',
-                hintText: 'YYYY/MM/DD',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.datetime,
-            ),
+            const Text('Purchase Order No.'),
+            TextFormField(
+                controller: purchaseOrderNoController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter Purchase Order No.',
+                )),
+            const SizedBox(height: 20),
+            const Text('Purchase Order Date'),
+            NpDatePicker(
+                onChanged: (date) => {},
+                controller: purchaseOrderDateController,
+                placeholder: 'Purchase Order Date'),
+            const SizedBox(height: 20),
+            const Text('Request Delivery Date'),
+            NpDatePicker(
+                onChanged: (date) => {},
+                controller: requestDeliveryDateController,
+                placeholder: 'Request Delivery Date'),
           ],
           const SizedBox(height: 20),
           SingleChildScrollView(
@@ -389,7 +423,7 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           if (uploadedFiles.isNotEmpty)
             ...uploadedFiles.asMap().entries.map((entry) {
               final index = entry.key;
-              final fileName = entry.value;
+              final XFile fileName = entry.value;
 
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -398,31 +432,25 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                     children: [
                       const Icon(Icons.insert_drive_file, size: 20),
                       const SizedBox(width: 8),
-                      Text(fileName, overflow: TextOverflow.ellipsis),
+                      Text(fileName.name, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.visibility, color: Colors.blue),
+                        icon: const Icon(Icons.visibility),
                         onPressed: () {
-                          // View file action
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text("View $fileName"),
-                          ));
+                          _viewFile(fileName);
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.download, color: Colors.green),
+                        icon: const Icon(Icons.download),
                         onPressed: () {
-                          // Download file action
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text("Download $fileName"),
-                          ));
+                          _downloadFile(fileName);
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete),
                         onPressed: () {
                           _deleteFile(index);
                         },
@@ -431,29 +459,25 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                   ),
                 ],
               );
-            }).toList(),
+            }),
           if (uploadedFiles.isNotEmpty) const SizedBox(height: 16),
 
           // Show Pending Orders link
-          GestureDetector(
-            onTap: () {
+          ElevatedButton(
+            onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                 content: Text("Show Pending Orders clicked"),
               ));
             },
             child: const Text(
               "Show Pending Orders",
-              style: TextStyle(
-                color: Colors.blue,
-                decoration: TextDecoration.underline,
-              ),
             ),
           ),
           const SizedBox(height: 16),
 
           // Save and Cancel buttons
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
                 onPressed: () {
@@ -464,11 +488,12 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                 icon: const Icon(Icons.save),
                 label: const Text("SAVE"),
               ),
+              const SizedBox(
+                width: 20,
+              ),
               OutlinedButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("Cancel clicked"),
-                  ));
+                  Navigator.pop(context);
                 },
                 child: const Text("CANCEL"),
               ),

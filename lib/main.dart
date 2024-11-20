@@ -2,6 +2,7 @@ import 'package:abis_mobile/cubit/config.cubit.dart';
 import 'package:abis_mobile/cubit/counter_cubit.dart';
 import 'package:abis_mobile/cubit/user.cubit.dart';
 import 'package:abis_mobile/routes.dart';
+import 'package:abis_mobile/utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,9 +18,6 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => CounterCubit(),
-        ),
-        BlocProvider(
           create: (_) => UserCubit(),
         ),
         BlocProvider(
@@ -27,6 +25,9 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        themeMode: ThemeMode.light,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
         debugShowCheckedModeBanner: false,
         initialRoute: '/login',
         routes: AppRoutes.getRoutes(),
