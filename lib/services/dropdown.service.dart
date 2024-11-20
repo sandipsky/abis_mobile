@@ -19,7 +19,7 @@ class DropDownService {
   Future getSalesRepresentativeDropdown(
       String searchTerm, int hqId, int divisionId) async {
     final response = await dio.get(
-      '$baseUrl/dropdown/customers/$searchTerm/$hqId/$divisionId',
+      '$baseUrl/dropdown/users/salesOrder/$searchTerm/$hqId/$divisionId',
     );
     return response;
   }
@@ -35,6 +35,20 @@ class DropDownService {
     final response = await dio.get(
       '$baseUrl/dropdown/users/divisions',
     );
+    return response;
+  }
+
+  Future getDivisionDropdownCustomer(int customerId) async {
+    final response = await dio.get(
+      '$baseUrl/dropdown/divisionsByCustomer/$customerId',
+    );
+    return response;
+  }
+
+  Future getProductsByTypeDivision(
+      String type, String searchTerm, int? divisionId) async {
+    final response = await dio.get(
+        '$baseUrl/dropdown/productsByType/$type/${divisionId ?? 0}/$searchTerm');
     return response;
   }
 }

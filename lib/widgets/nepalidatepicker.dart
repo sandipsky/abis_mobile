@@ -5,11 +5,13 @@ class NpDatePicker extends StatefulWidget {
   final Function(dynamic) onChanged;
   final TextEditingController controller;
   final String placeholder;
+  final readonly;
 
   const NpDatePicker({
     required this.onChanged,
     required this.controller,
     required this.placeholder,
+    this.readonly,
     super.key,
   });
 
@@ -37,7 +39,11 @@ class _NpDatePickerState extends State<NpDatePicker> {
               ),
               onTap: () => {
                 setState(() {
-                  showPicker = !showPicker;
+                  if (widget.readonly == true) {
+                    showPicker = false;
+                  } else {
+                    showPicker = !showPicker;
+                  }
                 })
               }, // Open date picker on tap
             ),

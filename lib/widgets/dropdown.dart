@@ -9,12 +9,14 @@ class MyDropdown extends StatefulWidget {
   final String placeholder;
   final bool showSearch;
   final Function(String)? onSearch;
+  final dynamic selectedItem;
 
   const MyDropdown({
     required this.items,
     required this.onChanged,
     required this.controller,
     required this.placeholder,
+    this.selectedItem,
     this.showSearch = false,
     this.onSearch,
     super.key,
@@ -35,6 +37,7 @@ class _MyDropdownState extends State<MyDropdown> {
         DropdownSearch(
           items: (filter, infiniteScrollProps) => widget.items,
           itemAsString: (item) => item['name'],
+          selectedItem: widget.selectedItem,
           decoratorProps: DropDownDecoratorProps(
             decoration: InputDecoration(
               hintText: widget.placeholder,
@@ -61,7 +64,7 @@ class _MyDropdownState extends State<MyDropdown> {
                         },
                         child: Container(
                           margin: const EdgeInsets.fromLTRB(0, 0, 11, 0),
-                          child: const Text('data'),
+                          child: const Icon(Icons.clear),
                         )),
               ),
               onChanged: (query) {

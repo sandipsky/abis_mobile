@@ -1,5 +1,4 @@
 import 'package:abis_mobile/cubit/config.cubit.dart';
-import 'package:abis_mobile/cubit/counter_cubit.dart';
 import 'package:abis_mobile/cubit/user.cubit.dart';
 import 'package:abis_mobile/routes.dart';
 import 'package:abis_mobile/utils/theme.dart';

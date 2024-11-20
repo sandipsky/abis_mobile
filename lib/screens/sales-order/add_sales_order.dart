@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:abis_mobile/screens/sales-order/pending_orders_dialog.dart';
+import 'package:abis_mobile/screens/sales-order/sales_order.service.dart';
 import 'package:abis_mobile/services/dropdown.service.dart';
 import 'package:abis_mobile/widgets/dropdown.dart';
 import 'package:abis_mobile/widgets/nepalidatepicker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:np_date_picker/np_date_picker.dart';
 
 class AddSalesOrder extends StatefulWidget {
   const AddSalesOrder({super.key});
@@ -17,15 +21,10 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   List headquarterList = [];
   List divisionList = [];
   List salesRepresentativeList = [];
-  List<Map<String, dynamic>> productList = [
-    {
-      'product': null,
-      'unit': 'pcs',
-      'qty': 0,
-      'rate': 0.0,
-      'total': 0.0,
-    },
-  ];
+  List apiProductList = [];
+  List pendingOrderList = [];
+  List appliedOrderList = [];
+  List dueInvoiceList = [];
   final List<Map<String, dynamic>> _rows = [];
   final List uploadedFiles = [];
 
@@ -43,6 +42,8 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
       TextEditingController();
   final TextEditingController requestDeliveryDateController =
       TextEditingController();
+  int customerId = 0;
+  int salesRepresentativeId = 0;
   int divisionId = 0;
   int hqId = 0;
   double total = 0.0;
@@ -50,10 +51,12 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   void _addRow() {
     setState(() {
       _rows.add({
-        'product': '',
-        'unit': '-',
-        'qty': 0,
-        'rate': 0.0,
+        'product_name': TextEditingController(),
+        'product_id': '',
+        'unit_id': '',
+        'unit_name': '',
+        'qty': TextEditingController(),
+        'rate': TextEditingController(),
         'amount': 0.0,
       });
     });
@@ -143,39 +146,86 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   }
 
   getSalesRepresentativeList(String searchTerm) async {
+    if (hqId != 0 && divisionId != 0) {
+      try {
+        var response = await DropDownService()
+                .getSalesRepresentativeDropdown(searchTerm, hqId, divisionId) ??
+            [];
+        if (response.statusCode == 200) {
+          setState(() {
+            salesRepresentativeList = response.data
+                .map((user) => {'name': user['name'], 'id': user['id']})
+                .toList();
+            ;
+          });
+        }
+      } catch (e) {
+        throw Exception(e);
+      }
+    }
+  }
+
+  getProductList(String searchTerm) async {
+    if (divisionId != 0) {
+      try {
+        var response = await DropDownService().getProductsByTypeDivision(
+                'sellable', searchTerm, divisionId) ??
+            [];
+        if (response.statusCode == 200) {
+          setState(() {
+            apiProductList = response.data
+                .map(
+                    (product) => {'name': product['name'], 'id': product['id']})
+                .toList();
+          });
+        }
+      } catch (e) {
+        throw Exception(e);
+      }
+    }
+  }
+
+  getProductDetail(int productId, int index) async {
     try {
-      var response = await DropDownService()
-              .getSalesRepresentativeDropdown(searchTerm, hqId, divisionId) ??
+      var response =
+          await SalesOrderService().getProductDetail(productId) ?? [];
+      if (response.statusCode == 200) {
+        setState(() {
+          _rows[index]['unit_id'] = response.data['unit_id'];
+          _rows[index]['unit_name'] = response.data['unit_name'];
+          _rows[index]['rate'].text = response.data['selling_price'].toString();
+        });
+      }
+    } catch (e) {
+      throw Exception(e);
+    }
+  }
+
+  getCustomerDivisions() async {
+    if (customerId != 0) {
+      try {
+        var response =
+            await DropDownService().getDivisionDropdownCustomer(customerId) ??
+                [];
+        if (response.statusCode == 200) {
+          setState(() {
+            divisionList = response.data;
+          });
+        }
+      } catch (e) {
+        throw Exception(e);
+      }
+    }
+  }
+
+  getPendingOrders() async {
+    try {
+      var response = await SalesOrderService()
+              .getPendingSalesOrder(customerId, divisionId) ??
           [];
       if (response.statusCode == 200) {
         setState(() {
-          salesRepresentativeList = response.data;
-        });
-      }
-    } catch (e) {
-      throw Exception(e);
-    }
-  }
-
-  getHeadquarterList() async {
-    try {
-      var response = await DropDownService().getHeadquarterDropdown() ?? [];
-      if (response.statusCode == 200) {
-        setState(() {
-          headquarterList = response.data;
-        });
-      }
-    } catch (e) {
-      throw Exception(e);
-    }
-  }
-
-  getDivisionList() async {
-    try {
-      var response = await DropDownService().getDivisionDropdown() ?? [];
-      if (response.statusCode == 200) {
-        setState(() {
-          divisionList = response.data;
+          pendingOrderList = response.data;
         });
       }
     } catch (e) {
@@ -186,9 +236,10 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   @override
   void initState() {
     super.initState();
-    getHeadquarterList();
-    getDivisionList();
     _addRow();
+    setState(() {
+      orderDate.text = NepaliDateTime.now().toString().split(' ')[0];
+    });
   }
 
   @override
@@ -206,10 +257,18 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           const Text('Customer'),
           MyDropdown(
             placeholder: 'Select Customer',
+            selectedItem: customerName.text.isNotEmpty
+                ? {
+                    'id': customerId,
+                    'name': customerName.text,
+                  }
+                : null,
             items: customerList,
             onChanged: (value) {
               setState(() {
                 customerName.text = value['name'];
+                customerId = value['id'];
+                getCustomerDivisions();
               });
             },
             controller: customerName,
@@ -223,27 +282,36 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           NpDatePicker(
               onChanged: (date) => {},
               controller: orderDate,
+              readonly: true,
               placeholder: 'Tap to Select Date'),
           const SizedBox(height: 20),
           const Text('Headquarter'),
-          MyDropdown(
-            placeholder: 'Select Headquarter',
-            items: headquarterList,
-            onChanged: (value) {
-              setState(() {
-                hqName.text = value['name'];
-              });
-            },
-            controller: hqName,
-          ),
+          TextFormField(
+              controller: hqName,
+              readOnly: true,
+              decoration: const InputDecoration(
+                hintText: 'Select Headquarter',
+              )),
           const SizedBox(height: 20),
           const Text('Division'),
           MyDropdown(
             placeholder: 'Select Division',
+            selectedItem: divisionName.text.isNotEmpty
+                ? {
+                    'id': divisionId,
+                    'name': divisionName.text,
+                    'hq_id': hqId,
+                    'hq_name': hqName.text
+                  }
+                : null,
             items: divisionList,
             onChanged: (value) {
               setState(() {
                 divisionName.text = value['name'];
+                divisionId = value['id'];
+                hqId = value['hq_id'];
+                hqName.text = value['hq_name'];
+                getPendingOrders();
               });
             },
             controller: divisionName,
@@ -253,9 +321,16 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           MyDropdown(
             placeholder: 'Select Representative',
             items: salesRepresentativeList,
+            selectedItem: salesRepresentativeName.text.isNotEmpty
+                ? {
+                    'id': salesRepresentativeId,
+                    'name': salesRepresentativeName.text,
+                  }
+                : null,
             onChanged: (value) {
               setState(() {
                 salesRepresentativeName.text = value['name'];
+                salesRepresentativeId = value['id'];
               });
             },
             controller: salesRepresentativeName,
@@ -277,7 +352,7 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                 transactionType.text = value['name'];
               });
             },
-            controller: divisionName,
+            controller: transactionType,
           ),
           const SizedBox(height: 20),
           Align(
@@ -315,77 +390,92 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           ],
           const SizedBox(height: 20),
           SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Product')),
-                DataColumn(label: Text('Unit')),
-                DataColumn(label: Text('Qty.')),
-                DataColumn(label: Text('Rate')),
-                DataColumn(label: Text('Amount')),
-                DataColumn(label: Text('Action')),
-              ],
-              rows: _rows.asMap().entries.map((entry) {
-                final index = entry.key;
-                final row = entry.value;
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      MyDropdown(
-                        placeholder: 'Select Product',
-                        items: salesRepresentativeList,
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Product')),
+                  DataColumn(label: Text('Unit')),
+                  DataColumn(label: Text('Qty.')),
+                  DataColumn(label: Text('Rate')),
+                  DataColumn(label: Text('Amount')),
+                  DataColumn(label: Text('Action')),
+                ],
+                rows: _rows.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final row = entry.value;
+                  return DataRow(
+                    key: ValueKey(row), // Add a unique key for each row
+                    cells: [
+                      DataCell(
+                        MyDropdown(
+                          placeholder: 'Select Product',
+                          items: apiProductList,
+                          controller: row['product_name'],
+                          selectedItem: row['product_name'].text.isNotEmpty
+                              ? {
+                                  'id': row['product_id'],
+                                  'name': row['product_name'].text
+                                }
+                              : null,
+                          onChanged: (value) {
+                            getProductDetail(value['id'], index);
+                            setState(() {
+                              row['product_name'].text = value['name'];
+                              row['product_id'] = value['id'];
+                              row['product'] = value;
+                            });
+                          },
+                          showSearch: true,
+                          onSearch: (query) {
+                            getProductList(query);
+                          },
+                        ),
+                      ),
+                      DataCell(Text(row['unit_name'])),
+                      DataCell(TextField(
+                        decoration: const InputDecoration(hintText: 'Qty.'),
+                        keyboardType: TextInputType.number,
+                        controller: row['qty'],
                         onChanged: (value) {
                           setState(() {
-                            salesRepresentativeName.text = value['name'];
-                          });
-                        },
-                        controller: salesRepresentativeName,
-                        showSearch: true,
-                        onSearch: (query) {
-                          getSalesRepresentativeList(query);
-                        },
-                      ),
-                    ),
-                    DataCell(Text(row['unit'])),
-                    DataCell(TextField(
-                      decoration: const InputDecoration(hintText: 'Qty.'),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        setState(() {
-                          row['qty'] = int.tryParse(value) ?? 0;
-                          row['amount'] = row['qty'] * (row['rate'] ?? 0.0);
-                          _calculateTotal();
-                        });
-                      },
-                    )),
-                    DataCell(TextField(
-                      decoration: const InputDecoration(hintText: 'Rate'),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        setState(() {
-                          row['rate'] = double.tryParse(value) ?? 0.0;
-                          row['amount'] = (row['qty'] ?? 0) * row['rate'];
-                          _calculateTotal();
-                        });
-                      },
-                    )),
-                    DataCell(Text(row['amount'].toStringAsFixed(2))),
-                    DataCell(
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          setState(() {
-                            _rows.removeAt(index);
+                            row['qty'].text = value;
+                            row['amount'] =
+                                (double.tryParse(row['qty'].text) ?? 0) *
+                                    (double.tryParse(row['rate'].text) ?? 0);
                             _calculateTotal();
                           });
                         },
+                      )),
+                      DataCell(TextField(
+                        decoration: const InputDecoration(hintText: 'Rate'),
+                        keyboardType: TextInputType.number,
+                        controller: row['rate'],
+                        onChanged: (value) {
+                          setState(() {
+                            row['rate'].text = value;
+                            row['amount'] =
+                                (double.tryParse(row['qty'].text) ?? 0) *
+                                    (double.tryParse(row['rate'].text) ?? 0);
+                            _calculateTotal();
+                          });
+                        },
+                      )),
+                      DataCell(Text(row['amount'].toStringAsFixed(2))),
+                      DataCell(
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              _rows.removeAt(index);
+                              _calculateTotal();
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
+                    ],
+                  );
+                }).toList(),
+              )),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: _addRow,
@@ -465,9 +555,41 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           // Show Pending Orders link
           ElevatedButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text("Show Pending Orders clicked"),
-              ));
+              showDialog(
+                context: context,
+                builder: (_) => PendingOrdersDialog(
+                  pendingOrders: const [
+                    {
+                      'orderNo': '2081-82|SO-000003',
+                      'orderDate': '2081-08-03',
+                      'salesRepresentative': 'admin',
+                      'product': 'Amlod',
+                      'unit': 'Pcs',
+                      'qty': 10,
+                      'rate': 10,
+                      'total': 100,
+                      'id': 1,
+                      'checked': false
+                    },
+                    {
+                      'orderNo': '2081-82|SO-000003',
+                      'orderDate': '2081-08-03',
+                      'salesRepresentative': 'admin',
+                      'product': 'Amlod',
+                      'unit': 'Pcs',
+                      'qty': 10,
+                      'rate': 10,
+                      'total': 100,
+                      'id': 2,
+                      'checked': false
+                    },
+                    // Add more orders here
+                  ],
+                  onChanged: (data) {
+                    setState(() {});
+                  },
+                ),
+              );
             },
             child: const Text(
               "Show Pending Orders",
