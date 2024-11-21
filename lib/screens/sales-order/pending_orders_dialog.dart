@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class PendingOrdersDialog extends StatefulWidget {
-  final List<Map<String, dynamic>> pendingOrders;
+  final List pendingOrders;
   final Function(dynamic) onChanged;
 
   const PendingOrdersDialog({
@@ -74,9 +74,7 @@ class _PendingOrdersDialogState extends State<PendingOrdersDialog> {
             const DataColumn(label: Text('SN.')),
             const DataColumn(label: Text('Order No.')),
             const DataColumn(label: Text('Order Date')),
-            const DataColumn(
-                label: Text('Sales Representative',
-                    style: TextStyle(fontSize: 12))),
+            const DataColumn(label: Text('Sales Representative')),
             const DataColumn(label: Text('Product')),
             const DataColumn(label: Text('Unit')),
             const DataColumn(label: Text('Qty')),

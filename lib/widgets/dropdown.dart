@@ -10,6 +10,7 @@ class MyDropdown extends StatefulWidget {
   final bool showSearch;
   final Function(String)? onSearch;
   final dynamic selectedItem;
+  final Function()? onClear;
 
   const MyDropdown({
     required this.items,
@@ -19,6 +20,7 @@ class MyDropdown extends StatefulWidget {
     this.selectedItem,
     this.showSearch = false,
     this.onSearch,
+    this.onClear,
     super.key,
   });
 
@@ -60,6 +62,7 @@ class _MyDropdownState extends State<MyDropdown> {
                           setState(() {
                             widget.controller.clear();
                             widget.controller.text = '';
+                            widget.onClear!();
                           });
                         },
                         child: Container(

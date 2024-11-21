@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:abis_mobile/screens/sales-order/pending_orders_dialog.dart';
+import 'package:abis_mobile/screens/sales-order/sales_aging_dialog.dart';
 import 'package:abis_mobile/screens/sales-order/sales_order.service.dart';
 import 'package:abis_mobile/services/dropdown.service.dart';
+import 'package:abis_mobile/services/util.service.dart';
 import 'package:abis_mobile/widgets/dropdown.dart';
 import 'package:abis_mobile/widgets/nepalidatepicker.dart';
 import 'package:flutter/material.dart';
@@ -25,26 +27,29 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   List pendingOrderList = [];
   List appliedOrderList = [];
   List dueInvoiceList = [];
-  final List<Map<String, dynamic>> _rows = [];
-  final List uploadedFiles = [];
+  List _rows = [];
+  List uploadedFiles = [];
+  Map<String, dynamic> customerDetail = {};
+  String discountCategoryName = '';
+  num availableCredit = 0;
+  num paymentTerms = 0;
+  num creditLimit = 0;
+
+  Map customer = {'customerId': 0, 'customerName': TextEditingController()};
+  Map salesRepresentative = {
+    'salesRepresentativeId': 0,
+    'salesRepresentativeName': TextEditingController()
+  };
+  Map division = {'divisionId': 0, 'divisionName': TextEditingController()};
 
   bool _isExpanded = false;
 
-  TextEditingController customerName = TextEditingController();
-  TextEditingController salesRepresentativeName = TextEditingController();
   TextEditingController hqName = TextEditingController();
-  TextEditingController divisionName = TextEditingController();
   TextEditingController transactionType = TextEditingController();
   TextEditingController orderDate = TextEditingController();
-  final TextEditingController purchaseOrderNoController =
-      TextEditingController();
-  final TextEditingController purchaseOrderDateController =
-      TextEditingController();
-  final TextEditingController requestDeliveryDateController =
-      TextEditingController();
-  int customerId = 0;
-  int salesRepresentativeId = 0;
-  int divisionId = 0;
+  TextEditingController purchaseOrderNoController = TextEditingController();
+  TextEditingController purchaseOrderDateController = TextEditingController();
+  TextEditingController requestDeliveryDateController = TextEditingController();
   int hqId = 0;
   double total = 0.0;
 
@@ -108,6 +113,36 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
     );
   }
 
+  resetForm(bool? customer) {
+    customerList = [];
+    headquarterList = [];
+    divisionList = [];
+    salesRepresentativeList = [];
+    apiProductList = [];
+    pendingOrderList = [];
+    appliedOrderList = [];
+    dueInvoiceList = [];
+    _rows = [];
+    uploadedFiles = [];
+    customerDetail = {};
+    discountCategoryName = '';
+    availableCredit = 0;
+    paymentTerms = 0;
+    creditLimit = 0;
+    _isExpanded = false;
+
+    hqName.text = '';
+    transactionType.text = '';
+    orderDate.text = '';
+    purchaseOrderNoController.text = '';
+    purchaseOrderDateController.text = '';
+    requestDeliveryDateController.text = '';
+    hqId = 0;
+    total = 0.0;
+
+    if (customer == true) {}
+  }
+
   Future<void> _downloadFile(XFile file) async {
     try {
       final Directory downloadsDir = Directory('/storage/emulated/0/Download');
@@ -166,10 +201,10 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   }
 
   getProductList(String searchTerm) async {
-    if (divisionId != 0) {
+    if (division['divisionId'] != 0) {
       try {
         var response = await DropDownService().getProductsByTypeDivision(
-                'sellable', searchTerm, divisionId) ??
+                'sellable', searchTerm, division['divisionId']) ??
             [];
         if (response.statusCode == 200) {
           setState(() {
@@ -201,12 +236,25 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
     }
   }
 
+  getCustomerDetail() async {
+    try {
+      var response =
+          await SalesOrderService().getCustomerDetail(customer['customerId']) ??
+              {};
+      if (response.statusCode == 200) {
+        customerDetail = response.data;
+      }
+    } catch (e) {
+      throw Exception(e);
+    }
+  }
+
   getCustomerDivisions() async {
-    if (customerId != 0) {
+    if (customer['customerId'] != 0) {
       try {
-        var response =
-            await DropDownService().getDivisionDropdownCustomer(customerId) ??
-                [];
+        var response = await DropDownService()
+                .getDivisionDropdownCustomer(customer['customerId']) ??
+            [];
         if (response.statusCode == 200) {
           setState(() {
             divisionList = response.data;
@@ -220,12 +268,51 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
 
   getPendingOrders() async {
     try {
-      var response = await SalesOrderService()
-              .getPendingSalesOrder(customerId, divisionId) ??
+      var response = await SalesOrderService().getPendingSalesOrder(
+              customer['customerId'], division['divisionId']) ??
           [];
       if (response.statusCode == 200) {
         setState(() {
           pendingOrderList = response.data;
+        });
+      }
+    } catch (e) {
+      throw Exception(e);
+    }
+  }
+
+  getDueInvoices() async {
+    try {
+      var response =
+          await SalesOrderService().getDueInvoices(customer['customerId']) ??
+              [];
+      if (response.statusCode == 200) {
+        setState(() {
+          final today = DateTime.now();
+
+          for (var invoice in response.data) {
+            DateTime? relevantDate;
+            if (invoice['dispatch_date'] != null &&
+                invoice['dispatch_date'].isNotEmpty) {
+              relevantDate = UtilService()
+                  .convertNepaliDateToEnglish(invoice['dispatch_date']);
+            } else if (invoice['invoice_date'] != null &&
+                invoice['invoice_date'].isNotEmpty) {
+              relevantDate = UtilService()
+                  .convertNepaliDateToEnglish(invoice['invoice_date']);
+            }
+
+            if (relevantDate != null) {
+              invoice['due_days'] = today.difference(relevantDate).inDays;
+            } else {
+              invoice['due_days'] = 0;
+            }
+          }
+
+          dueInvoiceList = response.data.where((invoice) {
+            int dueDays = invoice['due_days'] ?? 0;
+            return dueDays > paymentTerms;
+          }).toList();
         });
       }
     } catch (e) {
@@ -256,27 +343,30 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
         child: ListView(children: [
           const Text('Customer'),
           MyDropdown(
-            placeholder: 'Select Customer',
-            selectedItem: customerName.text.isNotEmpty
-                ? {
-                    'id': customerId,
-                    'name': customerName.text,
-                  }
-                : null,
-            items: customerList,
-            onChanged: (value) {
-              setState(() {
-                customerName.text = value['name'];
-                customerId = value['id'];
-                getCustomerDivisions();
-              });
-            },
-            controller: customerName,
-            showSearch: true,
-            onSearch: (query) {
-              getCustomerList(query);
-            },
-          ),
+              placeholder: 'Select Customer',
+              selectedItem: customer['customerName'].text.isNotEmpty
+                  ? {
+                      'id': customer['customerId'],
+                      'name': customer['customerName'].text,
+                    }
+                  : null,
+              items: customerList,
+              onChanged: (value) {
+                setState(() {
+                  customer['customerName'].text = value['name'];
+                  customer['customerId'] = value['id'];
+                  getCustomerDetail();
+                  getCustomerDivisions();
+                });
+              },
+              controller: customer['customerName'],
+              showSearch: true,
+              onSearch: (query) {
+                getCustomerList(query);
+              },
+              onClear: () {
+                resetForm(true);
+              }),
           const SizedBox(height: 20),
           const Text('Order Date'),
           NpDatePicker(
@@ -296,23 +386,63 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           const Text('Division'),
           MyDropdown(
             placeholder: 'Select Division',
-            selectedItem: divisionName.text.isNotEmpty
+            selectedItem: division['divisionName'].text.isNotEmpty
                 ? {
                     'id': divisionId,
-                    'name': divisionName.text,
+                    'name': division['divisionId'].text,
                     'hq_id': hqId,
                     'hq_name': hqName.text
                   }
                 : null,
             items: divisionList,
-            onChanged: (value) {
+            onClear: () {
+              resetForm(true);
+            },
+            onChanged: (value) async {
+              final selectedDivisionDetails =
+                  customerDetail?['discount_details']?.firstWhere(
+                (item) => item['division_id'] == value['id'],
+                orElse: () => null,
+              );
               setState(() {
                 divisionName.text = value['name'];
                 divisionId = value['id'];
                 hqId = value['hq_id'];
                 hqName.text = value['hq_name'];
-                getPendingOrders();
+                paymentTerms = selectedDivisionDetails?['credit_days'] ?? 0;
+                availableCredit =
+                    selectedDivisionDetails?['available_credit'] ?? 0;
+                discountCategoryName =
+                    selectedDivisionDetails?['discount_category']?['name'] ??
+                        '';
+                creditLimit = selectedDivisionDetails?['credit_limit'] ?? 0;
               });
+              await getPendingOrders();
+              await getDueInvoices();
+
+              var count = dueInvoiceList
+                  .where((invoice) {
+                    if (invoice['division_id'] != divisionId) {
+                      return false;
+                    }
+                    return true;
+                  })
+                  .toList()
+                  .length;
+              if (count > 0) {
+                showDialog(
+                  context: context,
+                  builder: (_) => SalesAgingDialog(
+                    invoiceList: dueInvoiceList,
+                    divisionId: divisionId,
+                    creditDays: paymentTerms,
+                    onClose: (data) {
+                      setState(() {});
+                    },
+                  ),
+                  barrierDismissible: false,
+                );
+              }
             },
             controller: divisionName,
           ),
@@ -388,7 +518,44 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                 controller: requestDeliveryDateController,
                 placeholder: 'Request Delivery Date'),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          ExpansionTile(
+            title: const Text("Customer Details"),
+            initiallyExpanded: false,
+            children: [
+              ListTile(
+                title: const Text("Reg No:"),
+                subtitle: Text(customerDetail['registration_no'] ?? "-"),
+              ),
+              ListTile(
+                title: const Text("Address:"),
+                subtitle: Text(customerDetail['address'] ?? "-"),
+              ),
+              ListTile(
+                title: const Text("Contact:"),
+                subtitle: Text(customerDetail['contact_no'] ?? "-"),
+              ),
+              ListTile(
+                title: const Text("Discount Category:"),
+                subtitle: Text(discountCategoryName.isNotEmpty
+                    ? discountCategoryName
+                    : "-"),
+              ),
+              ListTile(
+                title: const Text("Credit Limit:"),
+                subtitle: Text(creditLimit.toStringAsFixed(2)),
+              ),
+              ListTile(
+                title: const Text("Available Credit:"),
+                subtitle: Text(availableCredit.toStringAsFixed(2)),
+              ),
+              ListTile(
+                title: const Text("Payment Terms:"),
+                subtitle: Text("$paymentTerms Days"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
@@ -551,40 +718,12 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
               );
             }),
           if (uploadedFiles.isNotEmpty) const SizedBox(height: 16),
-
-          // Show Pending Orders link
           ElevatedButton(
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (_) => PendingOrdersDialog(
-                  pendingOrders: const [
-                    {
-                      'orderNo': '2081-82|SO-000003',
-                      'orderDate': '2081-08-03',
-                      'salesRepresentative': 'admin',
-                      'product': 'Amlod',
-                      'unit': 'Pcs',
-                      'qty': 10,
-                      'rate': 10,
-                      'total': 100,
-                      'id': 1,
-                      'checked': false
-                    },
-                    {
-                      'orderNo': '2081-82|SO-000003',
-                      'orderDate': '2081-08-03',
-                      'salesRepresentative': 'admin',
-                      'product': 'Amlod',
-                      'unit': 'Pcs',
-                      'qty': 10,
-                      'rate': 10,
-                      'total': 100,
-                      'id': 2,
-                      'checked': false
-                    },
-                    // Add more orders here
-                  ],
+                  pendingOrders: pendingOrderList,
                   onChanged: (data) {
                     setState(() {});
                   },
