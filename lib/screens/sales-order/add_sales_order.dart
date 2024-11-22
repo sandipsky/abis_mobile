@@ -35,21 +35,20 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   num paymentTerms = 0;
   num creditLimit = 0;
 
-  Map customer = {'customerId': 0, 'customerName': TextEditingController()};
-  Map salesRepresentative = {
-    'salesRepresentativeId': 0,
-    'salesRepresentativeName': TextEditingController()
-  };
-  Map division = {'divisionId': 0, 'divisionName': TextEditingController()};
-
   bool _isExpanded = false;
 
+  TextEditingController customerName = TextEditingController();
+  TextEditingController divisionName = TextEditingController();
+  TextEditingController salesRepresentativeName = TextEditingController();
   TextEditingController hqName = TextEditingController();
   TextEditingController transactionType = TextEditingController();
   TextEditingController orderDate = TextEditingController();
   TextEditingController purchaseOrderNoController = TextEditingController();
   TextEditingController purchaseOrderDateController = TextEditingController();
   TextEditingController requestDeliveryDateController = TextEditingController();
+  int customerId = 0;
+  int divisionId = 0;
+  int salesRepresentativeId = 0;
   int hqId = 0;
   double total = 0.0;
 
@@ -114,33 +113,46 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   }
 
   resetForm(bool? customer) {
-    customerList = [];
-    headquarterList = [];
-    divisionList = [];
-    salesRepresentativeList = [];
-    apiProductList = [];
-    pendingOrderList = [];
-    appliedOrderList = [];
-    dueInvoiceList = [];
-    _rows = [];
-    uploadedFiles = [];
-    customerDetail = {};
-    discountCategoryName = '';
-    availableCredit = 0;
-    paymentTerms = 0;
-    creditLimit = 0;
-    _isExpanded = false;
+    setState(() {
+      customerList = [];
+      headquarterList = [];
+      salesRepresentativeList = [];
+      apiProductList = [];
+      pendingOrderList = [];
+      appliedOrderList = [];
+      dueInvoiceList = [];
+      _rows = [];
+      uploadedFiles = [];
+      customerDetail = {};
+      discountCategoryName = '';
+      availableCredit = 0;
+      paymentTerms = 0;
+      creditLimit = 0;
+      _isExpanded = false;
 
-    hqName.text = '';
-    transactionType.text = '';
-    orderDate.text = '';
-    purchaseOrderNoController.text = '';
-    purchaseOrderDateController.text = '';
-    requestDeliveryDateController.text = '';
-    hqId = 0;
-    total = 0.0;
+      hqName.text = '';
+      transactionType.text = '';
+      purchaseOrderNoController.text = '';
+      purchaseOrderDateController.text = '';
+      requestDeliveryDateController.text = '';
+      divisionName.text = '';
+      salesRepresentativeName.text = '';
 
-    if (customer == true) {}
+      divisionId = 0;
+      salesRepresentativeId = 0;
+      hqId = 0;
+      total = 0.0;
+    });
+
+    _addRow();
+
+    if (customer == true) {
+      setState(() {
+        customerName.text = '';
+        customerId = 0;
+        divisionList = [];
+      });
+    }
   }
 
   Future<void> _downloadFile(XFile file) async {
@@ -201,10 +213,10 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   }
 
   getProductList(String searchTerm) async {
-    if (division['divisionId'] != 0) {
+    if (divisionId != 0) {
       try {
         var response = await DropDownService().getProductsByTypeDivision(
-                'sellable', searchTerm, division['divisionId']) ??
+                'sellable', searchTerm, divisionId) ??
             [];
         if (response.statusCode == 200) {
           setState(() {
@@ -239,10 +251,11 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   getCustomerDetail() async {
     try {
       var response =
-          await SalesOrderService().getCustomerDetail(customer['customerId']) ??
-              {};
+          await SalesOrderService().getCustomerDetail(customerId) ?? {};
       if (response.statusCode == 200) {
-        customerDetail = response.data;
+        setState(() {
+          customerDetail = response.data;
+        });
       }
     } catch (e) {
       throw Exception(e);
@@ -250,11 +263,11 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
   }
 
   getCustomerDivisions() async {
-    if (customer['customerId'] != 0) {
+    if (customerId != 0) {
       try {
-        var response = await DropDownService()
-                .getDivisionDropdownCustomer(customer['customerId']) ??
-            [];
+        var response =
+            await DropDownService().getDivisionDropdownCustomer(customerId) ??
+                [];
         if (response.statusCode == 200) {
           setState(() {
             divisionList = response.data;
@@ -268,8 +281,8 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
 
   getPendingOrders() async {
     try {
-      var response = await SalesOrderService().getPendingSalesOrder(
-              customer['customerId'], division['divisionId']) ??
+      var response = await SalesOrderService()
+              .getPendingSalesOrder(customerId, divisionId) ??
           [];
       if (response.statusCode == 200) {
         setState(() {
@@ -283,9 +296,7 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
 
   getDueInvoices() async {
     try {
-      var response =
-          await SalesOrderService().getDueInvoices(customer['customerId']) ??
-              [];
+      var response = await SalesOrderService().getDueInvoices(customerId) ?? [];
       if (response.statusCode == 200) {
         setState(() {
           final today = DateTime.now();
@@ -344,22 +355,22 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           const Text('Customer'),
           MyDropdown(
               placeholder: 'Select Customer',
-              selectedItem: customer['customerName'].text.isNotEmpty
+              selectedItem: customerName.text.isNotEmpty
                   ? {
-                      'id': customer['customerId'],
-                      'name': customer['customerName'].text,
+                      'id': customerId,
+                      'name': customerName.text,
                     }
                   : null,
               items: customerList,
               onChanged: (value) {
                 setState(() {
-                  customer['customerName'].text = value['name'];
-                  customer['customerId'] = value['id'];
+                  customerName.text = value['name'];
+                  customerId = value['id'];
                   getCustomerDetail();
                   getCustomerDivisions();
                 });
               },
-              controller: customer['customerName'],
+              controller: customerName,
               showSearch: true,
               onSearch: (query) {
                 getCustomerList(query);
@@ -386,21 +397,21 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
           const Text('Division'),
           MyDropdown(
             placeholder: 'Select Division',
-            selectedItem: division['divisionName'].text.isNotEmpty
+            selectedItem: divisionName.text.isNotEmpty
                 ? {
                     'id': divisionId,
-                    'name': division['divisionId'].text,
+                    'name': divisionName.text,
                     'hq_id': hqId,
                     'hq_name': hqName.text
                   }
                 : null,
             items: divisionList,
             onClear: () {
-              resetForm(true);
+              resetForm(false);
             },
             onChanged: (value) async {
               final selectedDivisionDetails =
-                  customerDetail?['discount_details']?.firstWhere(
+                  customerDetail['discount_details']?.firstWhere(
                 (item) => item['division_id'] == value['id'],
                 orElse: () => null,
               );
@@ -416,6 +427,9 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                     selectedDivisionDetails?['discount_category']?['name'] ??
                         '';
                 creditLimit = selectedDivisionDetails?['credit_limit'] ?? 0;
+                salesRepresentativeName.text = '';
+                salesRepresentativeId = 0;
+                salesRepresentativeList = [];
               });
               await getPendingOrders();
               await getDueInvoices();
@@ -437,7 +451,9 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
                     divisionId: divisionId,
                     creditDays: paymentTerms,
                     onClose: (data) {
-                      setState(() {});
+                      if (data == false) {
+                        resetForm(false);
+                      }
                     },
                   ),
                   barrierDismissible: false,

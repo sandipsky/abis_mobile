@@ -56,81 +56,92 @@ class _PendingOrdersDialogState extends State<PendingOrdersDialog> {
           )
         ],
       ),
-      content: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 8.0, // Reduce space between columns
-          headingTextStyle:
-              const TextStyle(fontSize: 14), // Smaller heading font
-          dataTextStyle: const TextStyle(fontSize: 14), // Smaller data font
-          horizontalMargin: 4.0, // Less horizontal padding
-          columns: [
-            DataColumn(
-              label: Checkbox(
-                value: _selectAll,
-                onChanged: _toggleSelectAll,
+      content: widget.pendingOrders.isEmpty
+          ? const SizedBox(
+              height: 50,
+              child: Text(
+                "No Pending Orders",
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            )
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 8.0, // Reduce space between columns
+                headingTextStyle:
+                    const TextStyle(fontSize: 14), // Smaller heading font
+                dataTextStyle:
+                    const TextStyle(fontSize: 14), // Smaller data font
+                horizontalMargin: 4.0, // Less horizontal padding
+                columns: [
+                  DataColumn(
+                    label: Checkbox(
+                      value: _selectAll,
+                      onChanged: _toggleSelectAll,
+                    ),
+                  ),
+                  const DataColumn(label: Text('SN.')),
+                  const DataColumn(label: Text('Order No.')),
+                  const DataColumn(label: Text('Order Date')),
+                  const DataColumn(label: Text('Sales Representative')),
+                  const DataColumn(label: Text('Product')),
+                  const DataColumn(label: Text('Unit')),
+                  const DataColumn(label: Text('Qty')),
+                  const DataColumn(label: Text('Rate')),
+                  const DataColumn(label: Text('Total')),
+                ],
+                rows: widget.pendingOrders
+                    .asMap()
+                    .entries
+                    .map(
+                      (entry) => DataRow(
+                        cells: [
+                          DataCell(
+                            Checkbox(
+                              value: _selectedOrders[entry.key],
+                              onChanged: (value) =>
+                                  _toggleIndividual(entry.key, value),
+                            ),
+                          ),
+                          DataCell(Text('${entry.key + 1}')),
+                          DataCell(Text(entry.value['orderNo']!)),
+                          DataCell(Text(entry.value['orderDate']!)),
+                          DataCell(Text(entry.value['salesRepresentative']!)),
+                          DataCell(Text(entry.value['product']!)),
+                          DataCell(Text(entry.value['unit']!)),
+                          DataCell(Text(entry.value['qty']!.toString())),
+                          DataCell(Text(entry.value['rate']!.toString())),
+                          DataCell(Text(entry.value['total']!.toString())),
+                        ],
+                      ),
+                    )
+                    .toList(),
               ),
             ),
-            const DataColumn(label: Text('SN.')),
-            const DataColumn(label: Text('Order No.')),
-            const DataColumn(label: Text('Order Date')),
-            const DataColumn(label: Text('Sales Representative')),
-            const DataColumn(label: Text('Product')),
-            const DataColumn(label: Text('Unit')),
-            const DataColumn(label: Text('Qty')),
-            const DataColumn(label: Text('Rate')),
-            const DataColumn(label: Text('Total')),
-          ],
-          rows: widget.pendingOrders
-              .asMap()
-              .entries
-              .map(
-                (entry) => DataRow(
-                  cells: [
-                    DataCell(
-                      Checkbox(
-                        value: _selectedOrders[entry.key],
-                        onChanged: (value) =>
-                            _toggleIndividual(entry.key, value),
-                      ),
-                    ),
-                    DataCell(Text('${entry.key + 1}')),
-                    DataCell(Text(entry.value['orderNo']!)),
-                    DataCell(Text(entry.value['orderDate']!)),
-                    DataCell(Text(entry.value['salesRepresentative']!)),
-                    DataCell(Text(entry.value['product']!)),
-                    DataCell(Text(entry.value['unit']!)),
-                    DataCell(Text(entry.value['qty']!.toString())),
-                    DataCell(Text(entry.value['rate']!.toString())),
-                    DataCell(Text(entry.value['total']!.toString())),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
-      ),
-      actions: [
-        OutlinedButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text("CANCEL"),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            // Collect selected items
-            List<Map<String, dynamic>> selectedOrders = [];
-            for (int i = 0; i < _selectedOrders.length; i++) {
-              if (_selectedOrders[i]) {
-                selectedOrders.add(widget.pendingOrders[i]);
-              }
-            }
-            Navigator.pop(context);
-            widget.onChanged(selectedOrders);
-          },
-          child: const Text("APPLY"),
-        ),
-      ],
+      actions: widget.pendingOrders.isNotEmpty
+          ? [
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("CANCEL"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Collect selected items
+                  List<Map<String, dynamic>> selectedOrders = [];
+                  for (int i = 0; i < _selectedOrders.length; i++) {
+                    if (_selectedOrders[i]) {
+                      selectedOrders.add(widget.pendingOrders[i]);
+                    }
+                  }
+                  Navigator.pop(context);
+                  widget.onChanged(selectedOrders);
+                },
+                child: const Text("APPLY"),
+              ),
+            ]
+          : null,
     );
   }
 }
