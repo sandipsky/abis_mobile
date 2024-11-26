@@ -364,7 +364,7 @@ class _AddSalesOrderState extends State<AddSalesOrder> {
               CrossAxisAlignment.start, // Align text to the left
           children: [
             const Text(
-              'Add Sales Order',
+              'View Sales Order',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             Text(
