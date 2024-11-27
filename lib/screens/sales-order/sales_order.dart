@@ -261,8 +261,7 @@ class _SalesOrderListState extends State<SalesOrderList> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(salesOrder['order_date'] ??
-                                          'No Date'),
+                                      Text("Order Date: ${salesOrder['order_date'] ?? '-'}"),
                                     ],
                                   ),
                                   // Text(
