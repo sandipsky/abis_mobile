@@ -261,7 +261,17 @@ class _SalesOrderListState extends State<SalesOrderList> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      Text("Order Date: ${salesOrder['order_date'] ?? '-'}"),
+                                      Text(
+                                          "Order Date: ${salesOrder['order_date'] ?? '-'}"),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                          "Order No: ${salesOrder['system_order_no'] ?? '-'}"),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "Total: ${salesOrder['total'] != null ? (salesOrder['total'] as num).toStringAsFixed(2) : '-'}",
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
                                     ],
                                   ),
                                   // Text(
